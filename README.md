@@ -28,9 +28,7 @@ This portfolio contains all my data science projects from both my academic and p
   - **Objective:** Developed models to predict individual insurance charges based on demographic and health-related features.  
   - **Approach:**  
     - Explored demographic features (age, sex, region, etc.) and health-related features (BMI, smoking, etc.).  
-    - Applied **Frequentist** and **Bayesian** approaches:  
-      - Linear Regression  
-      - Polynomial Features (for non-linear relationships)  
+    - Applied **Frequentist** and **Bayesian** approaches for model creation, models were a standard linear regression and one with polynomial features.
     - In the **Frequentist Approach**, models were evaluated using **Root Mean Square Error (RMSE)** to assess prediction accuracy.  
     - In the **Bayesian Approach**, model evaluation included:
       - **Deviance Information Criterion (DIC)** for model fit comparison.  
