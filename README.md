@@ -49,5 +49,5 @@ This portfolio contains all my data science projects from both my academic and p
   - The model with polynomial features provided lower **DIC** and better **RMSE** scores.  
   - Identified significant variables like **age**, **BMI**, and **smoking** as key predictors of insurance charges.  
 - **Tools & Technologies:** `R, JAGS, caret, ggplot2, R2jags, Metrics, dplyr, nortest, reshape2, e1071, gridExtra, knitr`
-- [Dataset](https://www.kaggle.com/datasets/teertha/ushealthinsurancedataset)
+- [Dataset](https://www.kaggle.com/datasets/mirichoi0218/insurance)
 
