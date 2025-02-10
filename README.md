@@ -24,6 +24,6 @@ This portfolio contains all my data science projects from both my academic and p
     - Neural Network  
   - Applied cross-validation and hyperparameter tuning to optimize performance.  
 - **Results:**  
-  - Achieved an **accuracy of 85%** with Gradient Boosting, outperforming other models.  
+  - Achieved an **accuracy of 88%** with Gradient Boosting, outperforming other models.  
   - Identified key income-influencing factors such as education level and occupation.  
 - **Tools & Technologies:** `Python, Scikit-Learn, Keras, Matplotlib, Plotly, XGBoost`  
