@@ -10,7 +10,7 @@ This portfolio contains all my data science projects from both my academic and p
 
 ### Machine Learning  
 
-- **[Census Data Income Prediction](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Census-Data-Income-Prediction)**  
+- **[Census Data Income Prediction](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Machine%20Learning%20Projects/Census-Data-Income-Prediction)**  
   - **Objective:** Developed a machine learning model to predict whether an adult earns more than $50K per year based on U.S. census data.  
   - **Approach:**  
     - Explored demographic and economic features (age, education, occupation, etc.).  
@@ -31,7 +31,7 @@ This portfolio contains all my data science projects from both my academic and p
 
 ### Statistical Analysis  
 
-- **[Insurance Charge Statistical Analysis](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Insurance-Charge-Statistical-Analysis)**  
+- **[Insurance Charge Statistical Analysis](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Statistical%20Analysis%20Projects/Insurance-Charge-Statistical-Analysis)**  
   - **Objective:** Developed models to predict individual insurance charges based on demographic and health-related features.  
   - **Approach:**  
     - Explored demographic features (age, sex, region, etc.) and health-related features (BMI, smoking, etc.).  
