@@ -27,7 +27,11 @@ This portfolio contains all my data science projects from both my academic and p
   - Achieved an **accuracy of 88%** with Gradient Boosting, outperforming other models.  
   - Identified key income-influencing factors such as education level and occupation.  
 - **Tools & Technologies:** `Python, Scikit-Learn, Keras, Matplotlib, Plotly, XGBoost`
-#### **[Insurance Charge Prediction](https://github.com/masabbah-97/Insurance-Charge-Prediction)**  
+- [Dataset](https://www.kaggle.com/datasets/uciml/adult-census-income/)
+
+### Statistical Analysis
+
+#### **[Insurance Charge Statistical Analysis](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Insurance-Charge-Statistical-Analysis)**  
 - **Objective:** Developed models to predict individual insurance charges based on demographic and health-related features.  
 - **Approach:**  
   - Explored demographic features (age, sex, region, etc.) and health-related features (BMI, smoking, etc.).  
@@ -45,4 +49,5 @@ This portfolio contains all my data science projects from both my academic and p
   - The model with polynomial features provided lower **DIC** and better **RMSE** scores.  
   - Identified significant variables like **age**, **BMI**, and **smoking** as key predictors of insurance charges.  
 - **Tools & Technologies:** `R, JAGS, caret, ggplot2, R2jags, Metrics, dplyr, nortest, reshape2, e1071, gridExtra, knitr`
+- [Dataset](https://www.kaggle.com/datasets/teertha/ushealthinsurancedataset)
 
