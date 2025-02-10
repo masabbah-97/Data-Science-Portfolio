@@ -1,0 +1,917 @@
+---
+title: "A statistical analysis of Insurance pricing"
+output: html_document
+author: "Mohamed Sabbah"
+---
+
+```{=html}
+<style>
+.centered {
+  text-align: center;
+}
+</style>
+<header>
+```
+
+------------------------------------------------------------------------
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+#install.packages("tidyr")
+#install.packages("reshape2")
+#install.packages("coda")
+#install.packages("R2jags")
+#install.packages("nortest")
+#install.packages("car")
+#install.packages("e1071")
+#install.packages("caret")
+library(nortest)
+library(car)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(R2jags)
+library(e1071) 
+library(knitr)
+library(dplyr)
+library (gridExtra)
+library(Metrics)
+library(caret)
+
+```
+
+# Introduction
+
+Modern healthcare systems rely heavily on medical insurance as they provide financial protection and access to medical services. Exploring the factors affecting insurance charges can help companies and individuals to make better informed decisions. A statistical analysis is carried out in this project to identify the key factors that affect insurance charges, as well as make predictions regarding said charges.
+
+# The Dataset
+
+[Medical Cost Personal Dataset](https://www.kaggle.com/datasets/mirichoi0218/insurance) consists of 1338 records aimed at examining factors that affect medical insurance costs. It includes the following variables:
+
+-   **Age**: Age of the primary beneficiary.
+
+-   **Sex**: Gender of the insurance policyholder (female or male).
+
+-   **BMI**: Body Mass Index, an objective measure of body weight relative to height (kg/m²), with an ideal range of 18.5 to 24.9.
+
+-   **Children**: Number of children or dependents covered by the health insurance.
+
+-   **Smoker**: Indicates whether the individual is a smoker.
+
+-   **Region**: The residential area of the beneficiary in the U.S. (northeast, southeast, southwest, northwest).
+
+-   **Charges**: Medical costs billed to the individual by the health insurance.
+
+# EDA
+
+We start with an explanatory data analysis for the dataset, we first display the dataset as shown below.
+
+```{r ,align='center',echo=FALSE}
+data <- read.csv('Data/insurance.csv')
+data$children <- as.factor(data$children)
+
+kable(head(data), caption = "First 5 rows of the dataset")
+```
+
+The next step is getting the summaries for the different columns, these summaries include the mean, median, minimum, maximum, and quantiles of said columns.
+
+```{r ,align='center',echo=FALSE}
+kable(summary(data), caption = "Dataset statistical summary")
+```
+
+The summary shows important details about the variables, including age (mean: 39.21), bmi (mean: 30.66), and children (mean: 1.095). Charges, which ranges from 1122 to 63770 with a mean of 13270, serves as the target variable.The rest of the variables have NA values because they are categorical variables. The next step is to check for missing values in the dataset, as you can see there are 0 missing values.
+
+```{r ,align='center',echo=FALSE}
+kable(colSums(is.na(data)), caption = "Count of missing values for each variable")
+```
+
+## Univariate analysis and visualizations
+Before we carry out any visualizations, we'll start by centering and scaling the data. Below are some data points after that process is done: 
+
+```{r ,align='center',echo=FALSE}
+pre_proc <- preProcess(data, method = c("center", "scale"), 
+                       subset = c("age", "bmi", "charges"))
+
+data <- predict(pre_proc, newdata = data)
+
+cat_features <- c("sex","children","smoker","region")
+num_features <- c("age","bmi","charges")
+kable(head(data), caption = "First 5 rows of the dataset after scaling and centering it")
+
+```
+
+```{r ,align='center',echo=FALSE}
+
+plot_list <- lapply(cat_features, function(column) {
+  ggplot(data, aes_string(x = column)) +
+    geom_bar(fill = "lightblue", color = "darkblue") +
+    labs(title = paste("Count Plot of", column), x = column, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+})
+
+ncols <- 3
+nrows <- ceiling(length(cat_features) / ncols)
+
+grid.arrange(grobs = plot_list, nrow = nrows, ncol = ncols)
+```
+
+For the categorical variables, we use a bar plot as shown above. For sex, we see that it's almost 50% males and 50% females. With children we see that the count decreases as the number of children increases. As for smoking, we see that the number of people who don't smoke is much higher than those who do smoke. Finally, when it comes to the region, we see that almost all regions are equal, with only the southeast being more prevalent.
+
+```{r ,align='center',echo=FALSE}
+
+plot_list <- lapply(num_features, function(column) {
+  ggplot(data, aes_string(x = column)) +
+    geom_histogram(aes(y = ..density..), bins = 25, fill = "lightblue", color = "darkblue")+
+    xlim(c(min(data[[column]]), max(data[[column]])))+
+    geom_density(color = "red", size = 1) +
+    labs(title = paste("Histogram and Density of", column), x = column, y = "Density") 
+    
+
+})
+
+grid.arrange(grobs = plot_list, nrow = 2, ncol = 2)
+```
+
+As for the continuous variables, we used a histogram and fitted a distribution on top of it. From what we can see, there might be a chance that bmi follows a normal distribution. We can check that using the Shapiro test.
+
+```{r ,align='center',echo=FALSE}
+print(shapiro.test(data$bmi))
+```
+
+With a very small value, we reject $H_0$ (that BMI follows a normal distribution). As for the other 2 variables, we can tell from the density plots that they do not follow a normal distribution either.
+
+## Bivariate analysis and visualizations
+
+### Correlation Matrix Heatmap
+
+We first start with a correlation matrix heatmap to check the variables with the strongest correlation.
+
+```{r ,align='center',echo=FALSE}
+cat_features <- c("sex","smoker","region","children")
+
+for (i in cat_features){
+  data[[i]] <- as.numeric(factor(data[[i]]))
+  
+}
+cor_matrix <- cor(data[, c("charges","age","bmi" )])
+cor_data <- melt(cor_matrix)
+ggplot(cor_data, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +  
+  scale_fill_viridis_c() + 
+  geom_text(aes(label = round(value, 2)), color = "white", size = 2) +  
+  labs(x = "", y = "", title = "Correlation Matrix Heatmap") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+As we can see, the variables with the highest correlation with the target variable are the smoker, age, and bmi variables. With smoker having by far the strongest relationship. Let's First check the distributions of smoker vs non smokers when it comes to charges.
+
+```{r ,align='center',echo=FALSE}
+plot_smokers <- ggplot(data[data$smoker == '2', ], aes(x = charges)) +
+  geom_histogram(aes(y = ..density..), bins = 25, fill = "lightblue", color = "darkblue")+
+    geom_density( color = "red") +
+xlim(c(min(data[data$smoker == 2, ]$charges), max(data[data$smoker == 2, ]$charges)))+  
+  ggtitle("Distribution of Charges for Smokers") +
+  xlab("Charges") +
+  ylab("Density")
+
+plot_non_smokers <- ggplot(data[data$smoker == 1, ], aes(x = charges)) +
+    geom_histogram(aes(y = ..density..), bins = 25, fill = "lightblue", color = "darkblue")+
+
+  geom_density(color = "red") +
+    xlim(c(min(data[data$smoker == 1, ]$charges), max(data[data$smoker == 1, ]$charges)))+
+  ggtitle("Distribution of Charges for Non-smokers") +
+  xlab("Charges") +
+  ylab("Density")
+
+grid.arrange(plot_smokers, plot_non_smokers, nrow = 1)
+```
+
+As we can see from the distributions above, insurance charges for non-smokers is concentrated around the lower values and heavily skewed as oposed to the smokers who have a more spread out distribution. This makes sense as insurance companies will definitely charge smokers more than non-smokers due to the health risks associated with smoking. Let's check the skewness:
+
+```{r ,align='center',echo=FALSE}
+paste("Smokers' skewness:",skewness(data[data$smoker == 2, ]$charges))
+paste("Non-smokers' skewness:",skewness(data[data$smoker == 1, ]$charges))
+```
+
+This supports our claim as the Non-smokers' charges is right skewed, indeed indicating a higher concentration of values for the lower charges.
+
+Now let's check the relationship between bmi and charges, as well as age and charges. We will use a scatter plot with a best fit line to explore the relationships.
+
+```{r ,align='center',echo=FALSE}
+bmi_charges <- ggplot(data, aes(x = bmi, y = charges)) + 
+  geom_point(color="light blue") + 
+  geom_smooth(method = "lm", se = FALSE) +  
+  labs(x = "BMI", y = "Charges",title="BMI in relation to Charges") + 
+  theme_minimal()
+age_charges<-ggplot(data, aes(x = age, y = charges)) + 
+  geom_point(color="light blue") + 
+  geom_smooth(method = "lm", se = FALSE) +  
+  labs(x = "Age", y = "Charges",title="Age in relation to Charges") + 
+  theme_minimal()
+
+grid.arrange(bmi_charges, age_charges, nrow = 1)
+```
+
+As we can see, there is a positive correlation between both BMI and age with charges. This makes sense as for the BMI, the larger it is the more likely a person is obese, which is well documented to be the cause of multiple health issues. And as for the Age, as people age they start encountering more health problems.
+
+# The models
+
+## The frequentist approach
+
+We will first start with a frequentist approach to solve this problem. After conducting an EDA, we can see that a linear model might be appropriate due to the relationships between the variables. A linear model is a mathematical equation that models the relationship between a dependent variable and one or more independent variables by assuming the relationship is linear. The model for multiple predictors can be expressed as:$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p + \epsilon$$Where: $X_1, X_2, \dots, X_p$ are the independent variables. $\beta_1, \beta_2, \dots, \beta_p$ are the corresponding coefficients for each variable. The goal of fitting a linear model is to estimate the parameters $\beta_0, \beta_1, \dots, \beta_p$ using ordinary least squares (OLS), which minimizes the sum of squared residuals (the differences between observed and predicted values). The error term $\epsilon$ represents random variability and is assumed to follow a normal distribution with zero mean and constant variance.This is a frequentist approach because it estimates parameters from the observed data, without incorporating prior beliefs or distributions about the parameters. This assumes that the data comes from a fixed, true distribution, and the parameters are fixed but unknown quantities estimated from the sample. Inference, such as confidence intervals and hypothesis testing, is based on the sampling distribution of the estimates.
+
+### The linear model
+
+```{r ,align='center'}
+linear_model <- lm(charges~.,data)
+print(summary(linear_model))
+```
+
+The model's p_value is \< 2.2e-16, which indicates that the model as a whole is statistically significant. This means that there is strong evidence against the null hypothesis, which typically states that there is no effect or no association between the predictor variable and the outcome variable. For our model, we shall discard any variables that have a p_value \>0.05, this is the case for the sex variable as it has a very high p_value (0.693681). Hence, we create a second model without it.
+
+```{r ,align='center'}
+linear_model <- lm(charges~age+bmi+children+smoker+region,data)
+print(summary(linear_model))
+
+```
+
+The new model has an R-squared of 0.75, which quantifies the proportion of variance in the dependent variables that can be explained by the independent variables in the model. Although it is not bad, it can definitely be improved upon.
+
+The next step is to train the model. We start by splitting the data into training and testing data sets. The split is a 75% training and 25% testing data.
+
+```{r ,align='center',echo=FALSE}
+set.seed(1245)
+
+tr_size <- nrow(data) *0.75
+
+ind <- sample(1:nrow(data), size = tr_size, replace = F)
+train <- data[ind, ]
+test <-  data[-ind, ]
+
+paste("train length:", nrow(train))
+paste("test length:", nrow(test))
+```
+
+Then we fit the model using the training dataset.
+
+```{r ,align='center'}
+linear_model_freq <- lm(charges~age+bmi+children+smoker+region,train)
+print(summary(linear_model_freq))
+
+```
+
+After the model was trained successfully, we now make predictions using the testing dataset and calculate the RMSE, which is defined as:
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+$$
+
+Where:
+
+-   $y_i$: The observed values.
+
+-   $\hat{y}_i$: The predicted values.
+
+-   $n$: The number of observations.
+
+But first,we check the parameter credible intervals.
+
+```{r ,align='center',echo=FALSE}
+print(confint(linear_model_freq))
+```
+
+Now we use the test dataset to make predictions and calculate the RMSE.
+
+```{r ,align='center'}
+test$y_hat <- predict(linear_model_freq, newdata = test)
+rmse_value <- rmse(test$charges, test$y_hat)
+paste("RMSE:", rmse_value)
+```
+
+Considering that our scaled range is (-1,4), this RMSE is moderate. This coupled with the R-squared we obtained shows that there is room for improvement.
+
+### An alternative model with polynomial features
+
+One of the limitations of our linear model is that it assumes a linear relationship between the independent variables and the dependent variable. A solution to combat this is by adding polynomial features to our model. This extends the model to capture non-linear relationships between the predictors and the dependent variable. But first, we need to define polynomial features. Polynomial features are new features added to the model that are created by raising the existing features to a degree or by creating interaction terms between them. For example, if we have 2 features $x_1$ and $x_2$, creating polynomial features up to the second degree will leave us with ($c,x_1,x_2,x_{1}^2,x_{2}^2,x_1*x_2$). In our case, we'll use 2 degrees polynomial features.
+
+```{r ,align='center'}
+data_pol <-subset(data,select=-c(sex,charges))
+
+data_pol <- as.data.frame(model.matrix(~ .^2 -1, data = data_pol))
+data_pol$age_squared <-data_pol$age^2
+data_pol$bmi_squared <-data_pol$bmi^2
+data_pol$children_squared <-data_pol$children^2
+data_pol$smoker_squared <-data_pol$smoker^2
+data_pol$region_squared <-data_pol$region^2
+
+
+
+
+data_pol$charges<-data$charges
+colnames(data_pol) <- gsub(":", "_", colnames(data_pol))
+
+
+```
+
+```{r ,align='center'}
+linear_model_poly_2 <-  lm(charges ~ ., data = data_pol)
+
+print(summary(linear_model_poly_2))
+
+```
+
+Already, we see a massive improvement in the R-squared as it is now 0.85 rising from 0.75. Now, let's remove the statistically insignificant variables.
+
+```{r ,align='center'}
+linear_model_poly_2 <-  lm(charges ~age+bmi+children+smoker+bmi_smoker+age_squared +bmi_squared, data = data_pol)
+
+print(summary(linear_model_poly_2))
+
+```
+
+Now let's do the train-test split
+
+```{r ,align='center',echo=FALSE}
+set.seed(1245)
+
+tr_size <- nrow(data_pol) *0.75
+
+ind <- sample(1:nrow(data_pol), size = tr_size, replace = F)
+train_pol <- data_pol[ind, ]
+test_pol <-  data_pol[-ind, ]
+linear_model_poly_2 <- lm(charges ~age+bmi+children+smoker+bmi_smoker+age_squared +bmi_squared, data = train_pol)
+```
+
+Checking the RMSE
+
+```{r ,align='center'}
+test$y_hat_pol <- predict(linear_model_poly_2, newdata = test_pol)
+rmse_value <- rmse(test$charges, test$y_hat_pol)
+paste("RMSE:", rmse_value)
+```
+
+This shows an obvious improvement in both the R-squared and the RMSE. Finally, let's visualize our results.
+
+```{r ,align='center',echo=FALSE}
+
+ggplot(test, aes(x = test$charges, y = test$y_hat_pol)) +
+  geom_point(color="light blue") +                       
+  geom_abline(slope = 1, intercept = 0, color = "black", linetype = "dashed") + 
+  labs(title = "Observed vs. Predicted Values",
+       x = "Observed Values",
+       y = "Predicted Values") 
+```
+
+## The Bayesian Approach
+
+In this model, we use a Bayesian linear regression approach to estimate the relationship between a continuous response variable and several predictor variables. The model assumes that the response variable, $Y$, is normally distributed, with its mean, $\mu$, being a linear combination of the predictor variables, and the error is modeled by a precision parameter, $\tau$ (the inverse of variance). The general form of the model is as follows:$$Y_i \sim N(\mu_i, \tau)$$ $$\mu_i = \beta_0 + \beta_1 X_{1i} + \beta_2 X_{2i} + \dots + \beta_p X_{pi}$$We adopt a Bayesian framework, which involves specifying prior distributions for all the unknown parameters in the model. In this case, we use weakly informative priors, which are designed to provide some initial regularization but are broad enough not to dominate the posterior in the presence of sufficient data.For the regression coefficients $\beta_0, \beta_1, \dots, \beta_p$, we assume independent normal priors with a mean of 0 and a small precision (large variance):$$\beta_j \sim N(0, 0.1) \quad \text{for } j = 0, 1, \dots, p$$These weakly informative priors reflect our initial belief that the parameters are likely to be close to 0, but they allow for large deviations based on the data. This helps to regularize the model without imposing strong assumptions.For the precision parameter $\tau$, we assign a Gamma prior:$$\tau \sim \text{Gamma}(0.1, 0.1)$$The Gamma distribution is commonly used as a prior for precision in Bayesian models, and the parameters $0.1$ and $0.1$ make it a weakly informative prior, allowing the data to significantly influence the posterior distribution.The likelihood function specifies how the observed data are generated given the model parameters. For each observation $i$, the response variable $Y_i$ is assumed to follow a normal distribution centered around $\mu_i$ with precision $\tau$:$$Y_i \sim N(\mu_i, \tau)$$The mean $\mu_i$ is modeled as a linear combination of the predictors $X_{1i}, X_{2i}, \dots, X_{pi}$ and the corresponding coefficients $\beta_1, \beta_2, \dots, \beta_p$.In the Bayesian framework, we combine the prior distributions with the likelihood to obtain the posterior distributions of the model parameters. This is achieved using Markov Chain Monte Carlo (MCMC) methods, such as Gibbs sampling in JAGS, which allows us to generate samples from the posterior distribution.The posterior distributions provide not just point estimates for the parameters but a full distribution, allowing us to quantify uncertainty and make probabilistic statements about the parameters.This Bayesian model incorporates weakly informative priors to regularize the parameter estimates while allowing the data to drive the inference. The Bayesian approach provides a probabilistic interpretation of the model parameters, giving us posterior distributions that reflect the uncertainty in our estimates.
+
+### The Initial model
+
+The initial model we will be using is a linear model without any transformations done on the features, this is shown below.
+
+```{r ,align='center'}
+jags_data<- list(
+  N = nrow(train),
+  charges = train$charges,
+  age = train$age,
+  sex = train$sex,
+  bmi = train$bmi,
+  children = train$children,
+  smoker = train$smoker,
+  region = train$region
+)
+
+jags_code<- "
+model {
+#priors
+beta0 ~ dnorm(0,0.1)
+beta_age ~ dnorm(0,0.1)
+beta_sex ~ dnorm(0,0.1)
+beta_bmi ~ dnorm(0,0.1)
+beta_children ~ dnorm(0,0.1)
+beta_smoker ~ dnorm(0,0.1)
+beta_region ~ dnorm(0,0.1)
+tau ~ dgamma(0.1, 0.1)
+
+#likelihood
+for (i in 1:N) {
+    mu[i] <- beta0 +beta_age * age[i] + beta_sex * sex[i]+beta_bmi * bmi[i] + beta_children * children[i] + beta_smoker * smoker[i] + beta_region * region[i]
+    
+             
+    charges[i] ~ dnorm(mu[i], tau) 
+  }
+
+
+
+
+
+
+}
+"
+jags_model <- jags(data = jags_data, inits = NULL,
+                   parameters.to.save = c("beta0", "beta_age", "beta_sex","beta_bmi","beta_children","beta_smoker","beta_region", "tau"), 
+                   model.file = textConnection(jags_code), 
+                   n.chains = 3, n.iter = 12000, n.burnin = 2000, n.thin = 10)
+
+```
+
+```{r ,align='center'}
+jags_model
+```
+
+If a parameter's credible interval includes 0, it suggests that the effect of the parameter could plausibly be zero, meaning there may be no significant association between that predictor and the outcome. The parameter that fits this condition is beta_sex, hence, we shall remove it.
+
+```{r ,align='center'}
+jags_data<- list(
+  N = nrow(train),
+  charges = train$charges,
+  age = train$age,
+  bmi = train$bmi,
+  children = train$children,
+  smoker = train$smoker,
+  region = train$region
+)
+
+jags_code<- "
+model {
+#priors
+beta0 ~ dnorm(0,0.1)
+beta_age ~ dnorm(0,0.1)
+beta_bmi ~ dnorm(0,0.1)
+beta_children ~ dnorm(0,0.1)
+beta_smoker ~ dnorm(0,0.1)
+beta_region ~ dnorm(0,0.1)
+tau ~ dgamma(0.1, 0.1)
+
+#likelihood
+for (i in 1:N) {
+    mu[i] <- beta0 +beta_age * age[i] +beta_bmi * bmi[i] + beta_children * children[i] + beta_smoker * smoker[i] + beta_region * region[i]
+    
+             
+    charges[i] ~ dnorm(mu[i], tau) 
+  }
+
+
+
+
+
+
+}
+"
+jags_model <- jags(data = jags_data, inits = NULL,
+                   parameters.to.save = c("beta0", "beta_age","beta_bmi","beta_children","beta_smoker","beta_region", "tau"), 
+                   model.file = textConnection(jags_code), 
+                   n.chains = 3, n.iter = 12000, n.burnin = 2000, n.thin = 10)
+```
+
+```{r ,align='center'}
+jags_model
+
+```
+
+In order to compare between models, we need to discuss the different metrics that we will use.
+
+### Deviance and DIC
+
+The next step is to look at the deviance and the DIC(Deviance Information Criterion) of the models, but first we'll explain exactly what these are. Deviance is a measure of the goodness of fit of a statistical model. it is calculated as: $$
+\text{Deviance} = -2 \times \left( \log \text{-likelihood of the fitted model} \right)
+$$ with the lower the deviance, the better the fit of the model. The DIC on the other hand incorporates both the deviance of a model as well as its complexity, and it is defined as:
+
+$$
+DIC(m)=2D( \overline\theta _{m},m)+2p_m
+$$
+
+where:
+
+-   $p_m$: Can be interpreted as the number of effective parameters for model m given by $p_m=\overline{D(\theta_m,m)}-D( \bar\theta _{m},m)$
+-   $D( \theta _{m},m)$:The deviance.
+-   $\overline{D(\theta_m,m)}$: The posterior mean of the deviance.
+-   $\overline\theta_m$: The posterior mean of the parameters involved in model m.
+
+### $\hat{R}$
+
+Rhat, also known as the potential scale reduction factor, is a diagnostic statistic used in Bayesian analysis to assess the convergence of Markov Chain Monte Carlo (MCMC) simulations. It is calculated by:
+
+$$
+\hat{R} = \sqrt{\frac{V_{\text{between}} + (N + 1) \cdot V_{\text{within}}}{N}}
+$$
+
+where:
+
+-   $V_{between}$: The variance of the means of the chains.
+
+-   $V_{within}$: The average variance within each chain.
+
+-   $N$: The number of iterations in each chain.
+
+An $\hat{R}$ value of 1 indicates that the chains have converged and are sampling from the same distribution, $\hat{R}<1.05$ Generally indicates good convergence, and $1.05<\hat{R}<1.1$ suggests potential convergence issues.
+
+### n.eff.
+
+n.eff. or effective sample size, is a measure used to assess the number of independent samples drawn from a posterior distribution after accounting for autocorrelation in MCMC simulations. A higher n.eff.. indicates more independent information in the samples, suggesting that the MCMC has mixed well and the posterior distribution is well approximated. A good n.eff. also needs to be close to the number of samples.
+
+Now since we outlined the metrics we will be looking at, let's compare between both our models. We can see that the model without beta_sex has a lower (in other words, lower), a better n.eff. when it comes to most parameters, and the same $\hat{R}$. Hence, it is the better option.
+
+### The alternative model with polynomial features
+
+As we did in the "frequentist approach" section, we will introduce polynomial features to our model to see if it can improve it.
+
+```{r}
+jags_alt_data<- list(
+  N = nrow(train_pol),
+  charges = train_pol$charges,
+  age = train_pol$age,
+  bmi = train_pol$bmi,
+  children = train_pol$children,
+  smoker = train_pol$smoker,
+  region = train_pol$region,
+  age_bmi=train_pol$age_bmi,
+  age_children=train_pol$age_children,
+  age_smoker=train_pol$age_smoker,
+  age_region=train_pol$age_region,
+  bmi_children = train_pol$bmi_children,
+  bmi_smoker = train_pol$bmi_smoker,
+  bmi_region = train_pol$bmi_region,
+  children_smoker = train_pol$children_smoker,
+  children_region = train_pol$children_region,
+  smoker_region = train_pol$smoker_region,
+  age_squared = train_pol$age_squared,
+  bmi_squared = train_pol$bmi_squared,
+  children_squared = train_pol$children_squared,
+  smoker_squared = train_pol$smoker_squared,
+  region_squared = train_pol$region_squared)
+
+jags_alt_code <- "
+model {
+#priors
+beta0 ~ dnorm(0,0.1)
+beta_age ~ dnorm(0,0.1)
+beta_bmi ~ dnorm(0,0.1)
+beta_children ~ dnorm(0,0.1)
+beta_smoker ~ dnorm(0,0.1)
+beta_region ~ dnorm(0,0.1)
+beta_age_bmi ~ dnorm(0,0.1)
+beta_age_children ~ dnorm(0,0.1)
+beta_age_smoker ~ dnorm(0,0.1)
+beta_age_region ~ dnorm(0,0.1)
+beta_bmi_children ~ dnorm(0,0.1)
+beta_bmi_smoker ~ dnorm(0,0.1)
+beta_bmi_region ~ dnorm(0,0.1)
+beta_children_smoker ~ dnorm(0,0.1)
+beta_children_region ~ dnorm(0,0.1)
+beta_smoker_region ~ dnorm(0,0.1)
+beta_age_squared ~ dnorm(0,0.1)
+beta_bmi_squared ~ dnorm(0,0.1)
+beta_children_squared ~ dnorm(0,0.1)
+beta_smoker_squared ~ dnorm(0,0.1)
+beta_region_squared ~ dnorm(0,0.1)
+
+
+
+
+
+
+
+tau ~ dgamma(0.1, 0.1)
+
+#likelihood
+for (i in 1:N) {
+    mu[i] <- beta0 +beta_age * age[i] +beta_bmi * bmi[i] + beta_children * children[i] + beta_smoker * smoker[i] + beta_region * region[i] +beta_age_bmi * age_bmi[i] + beta_age_children *age_children[i] + beta_age_smoker * age_smoker[i] + beta_age_region * age_region[i] +beta_bmi_children * bmi_children[i] +beta_bmi_smoker * bmi_smoker[i] +beta_bmi_region * bmi_region[i] +beta_children_smoker * children_smoker[i] + beta_children_region* children_region[i] +beta_smoker_region * smoker_region[i] + beta_age_squared * age_squared[i] + beta_bmi_squared * bmi_squared[i] + beta_children_squared * children_squared[i] +beta_smoker_squared* smoker_squared[i] + beta_region_squared * region_squared[i]
+    
+             
+    charges[i] ~ dnorm(mu[i], tau) 
+  }
+
+
+
+
+
+
+}
+"
+jags_alt_model <- jags(data = jags_alt_data, inits = NULL,
+                   parameters.to.save = c("beta0", "beta_age","beta_bmi","beta_children","beta_smoker","beta_region", "beta_age_bmi","beta_age_children",
+"beta_age_smoker" ,
+"beta_age_region" ,
+"beta_bmi_children",
+"beta_bmi_smoker",
+"beta_bmi_region" ,
+"beta_children_smoker",
+"beta_children_region",
+"beta_smoker_region" ,
+"beta_age_squared" ,
+"beta_bmi_squared" ,
+"beta_children_squared" ,
+"beta_smoker_squared",
+"beta_region_squared" ,
+"tau"), 
+                   model.file = textConnection(jags_alt_code), 
+                   n.chains = 3, n.iter = 12000, n.burnin = 2000, n.thin = 10)
+```
+
+```{r}
+jags_alt_model
+```
+
+We already see a huge improvement in the DIC (1527 to 1093), but not necessarily the n.eff.. Now let's remove the statistically insignificant parameters. These are the parameters that have 0 in their credible interval.
+
+```{r}
+jags_alt_data<- list(
+  N = nrow(train_pol),
+  charges = train_pol$charges,
+  age = train_pol$age,
+  bmi = train_pol$bmi,
+  children = train_pol$children,
+  region = train_pol$region,
+  age_bmi=train_pol$age_bmi,
+  age_children=train_pol$age_children,
+  age_region=train_pol$age_region,
+  bmi_smoker = train_pol$bmi_smoker,
+  bmi_region = train_pol$bmi_region,
+  children_smoker = train_pol$children_smoker,
+  children_region = train_pol$children_region,
+  smoker_region = train_pol$smoker_region,
+  age_squared = train_pol$age_squared,
+  bmi_squared = train_pol$bmi_squared,
+  smoker_squared = train_pol$smoker_squared,
+  region_squared = train_pol$region_squared)
+
+jags_alt_code <- "
+model {
+#priors
+beta0 ~ dnorm(0,0.1)
+beta_age ~ dnorm(0,0.1)
+beta_bmi ~ dnorm(0,0.1)
+beta_children ~ dnorm(0,0.1)
+beta_region ~ dnorm(0,0.1)
+beta_age_bmi ~ dnorm(0,0.1)
+beta_age_children ~ dnorm(0,0.1)
+beta_age_region ~ dnorm(0,0.1)
+beta_bmi_smoker ~ dnorm(0,0.1)
+beta_bmi_region ~ dnorm(0,0.1)
+beta_children_smoker ~ dnorm(0,0.1)
+beta_children_region ~ dnorm(0,0.1)
+beta_smoker_region ~ dnorm(0,0.1)
+beta_age_squared ~ dnorm(0,0.1)
+beta_bmi_squared ~ dnorm(0,0.1)
+beta_smoker_squared ~ dnorm(0,0.1)
+beta_region_squared ~ dnorm(0,0.1)
+
+
+
+
+
+
+
+tau ~ dgamma(0.1, 0.1)
+
+#likelihood
+for (i in 1:N) {
+    mu[i] <- beta0 +beta_age * age[i] +beta_bmi * bmi[i] + beta_children * children[i] +  beta_region * region[i] +beta_age_bmi * age_bmi[i] + beta_age_children *age_children[i]  + beta_age_region * age_region[i] +beta_bmi_smoker * bmi_smoker[i] +beta_bmi_region * bmi_region[i] +beta_children_smoker * children_smoker[i] + beta_children_region* children_region[i] +beta_smoker_region * smoker_region[i] + beta_age_squared * age_squared[i] + beta_bmi_squared * bmi_squared[i] + beta_smoker_squared* smoker_squared[i] + beta_region_squared * region_squared[i]
+    
+             
+    charges[i] ~ dnorm(mu[i], tau) 
+  }
+
+
+
+
+
+
+}
+"
+jags_alt_model <- jags(data = jags_alt_data, inits = NULL,
+                   parameters.to.save = c("beta0", "beta_age","beta_bmi","beta_children","beta_region", "beta_age_bmi","beta_age_children",
+"beta_age_region" ,
+"beta_bmi_smoker",
+"beta_bmi_region" ,
+"beta_children_smoker",
+"beta_children_region",
+"beta_smoker_region" ,
+"beta_age_squared" ,
+"beta_bmi_squared" ,
+"beta_smoker_squared",
+"beta_region_squared" ,
+"tau"), 
+                   model.file = textConnection(jags_alt_code), 
+                   n.chains = 3, n.iter = 12000, n.burnin = 2000, n.thin = 10)
+```
+
+```{r}
+jags_alt_model
+```
+
+Looks like this model is even better as it has better DIC(1087 in comparison to 1093), comparable n.eff. and $\hat{R}$, and tighter intervals in certain parameter.
+
+### Predictive Accuracy
+
+#### Initial model
+
+```{r}
+# Extract posterior samples for each parameter
+set.seed(1245)
+beta0_samples <- jags_model$BUGSoutput$sims.list$beta0
+beta_age_samples <- jags_model$BUGSoutput$sims.list$beta_age
+beta_bmi_samples <- jags_model$BUGSoutput$sims.list$beta_bmi
+beta_children_samples <- jags_model$BUGSoutput$sims.list$beta_children
+beta_smoker_samples <- jags_model$BUGSoutput$sims.list$beta_smoker
+beta_region_samples <- jags_model$BUGSoutput$sims.list$beta_region
+
+# Prepare the test data
+test_data <- data.frame(
+  age = test$age,
+  bmi = test$bmi,
+  children = test$children,
+  smoker = test$smoker,
+  region = test$region
+)
+
+# Number of posterior samples and number of test observations
+n_samples <- length(beta0_samples)
+n_test <- nrow(test_data)
+
+# Initialize matrix to store predictions
+predictions <- matrix(NA, nrow = n_samples, ncol = n_test)
+
+# Loop through each test observation and compute predictions for each posterior sample
+for (j in 1:n_test) {
+  mu <- beta0_samples + 
+        beta_age_samples * test_data$age[j] + 
+        beta_bmi_samples * test_data$bmi[j] + 
+        beta_children_samples * test_data$children[j] + 
+        beta_smoker_samples * test_data$smoker[j] + 
+        beta_region_samples * test_data$region[j]
+  
+  # Store predictions from the normal distribution with posterior tau
+  predictions[, j] <- rnorm(n_samples, mu, sqrt(1 / jags_model$BUGSoutput$sims.list$tau))
+}
+
+# Calculate the mean prediction for each test observation
+predicted_means <- apply(predictions, 2, mean)
+
+# Output predicted means
+test$bayes <- predicted_means
+rmse_value <- rmse(test$charges, test$bayes)
+paste("RMSE:", rmse_value)
+```
+
+#### polynomial features model
+
+```{r, align='center', echo=FALSE}
+set.seed(1245)
+
+beta0_samples <- jags_alt_model$BUGSoutput$sims.list$beta0
+beta_age_samples <- jags_alt_model$BUGSoutput$sims.list$beta_age
+beta_bmi_samples <- jags_alt_model$BUGSoutput$sims.list$beta_bmi
+beta_children_samples <- jags_alt_model$BUGSoutput$sims.list$beta_children
+beta_region_samples <- jags_alt_model$BUGSoutput$sims.list$beta_region
+beta_age_bmi_samples <- jags_alt_model$BUGSoutput$sims.list$beta_age_bmi
+beta_age_children_samples <- jags_alt_model$BUGSoutput$sims.list$beta_age_children
+beta_age_region_samples <- jags_alt_model$BUGSoutput$sims.list$beta_age_region
+beta_bmi_smoker_samples <- jags_alt_model$BUGSoutput$sims.list$beta_bmi_smoker
+beta_bmi_region_samples <- jags_alt_model$BUGSoutput$sims.list$beta_bmi_region
+beta_children_smoker_samples <- jags_alt_model$BUGSoutput$sims.list$beta_children_smoker
+beta_children_region_samples <- jags_alt_model$BUGSoutput$sims.list$beta_children_region
+beta_smoker_region_samples <- jags_alt_model$BUGSoutput$sims.list$beta_smoker_region
+beta_age_squared_samples <- jags_alt_model$BUGSoutput$sims.list$beta_age_squared
+beta_bmi_squared_samples <- jags_alt_model$BUGSoutput$sims.list$beta_bmi_squared
+beta_smoker_squared_samples <- jags_alt_model$BUGSoutput$sims.list$beta_smoker_squared
+beta_region_squared_samples <- jags_alt_model$BUGSoutput$sims.list$beta_region_squared
+
+test_data <- data.frame(
+  age = test_pol$age,
+  bmi = test_pol$bmi,
+  children = test_pol$children,
+  region = test_pol$region,
+  age_bmi = test_pol$age_bmi,
+  age_children = test_pol$age_children,
+  age_region = test_pol$age_region,
+  bmi_smoker = test_pol$bmi_smoker,
+  bmi_region = test_pol$bmi_region,
+  children_smoker = test_pol$children_smoker,
+  children_region = test_pol$children_region,
+  smoker_region = test_pol$smoker_region,
+  age_squared = test_pol$age_squared,
+  bmi_squared = test_pol$bmi_squared,
+  smoker_squared = test_pol$smoker_squared,
+  region_squared = test_pol$region_squared
+)
+
+n_samples <- length(beta0_samples)
+n_test <- nrow(test_data)
+
+predictions <- matrix(NA, nrow = n_samples, ncol = n_test)
+
+for (j in 1:n_test) {
+  mu <- beta0_samples + 
+    beta_age_samples * test_data$age[j] +
+    beta_bmi_samples * test_data$bmi[j] +
+    beta_children_samples * test_data$children[j] +
+    beta_region_samples * test_data$region[j] +
+    beta_age_bmi_samples * test_data$age_bmi[j] +
+    beta_age_children_samples * test_data$age_children[j] +
+    beta_age_region_samples * test_data$age_region[j] +
+    beta_bmi_smoker_samples * test_data$bmi_smoker[j] +
+    beta_bmi_region_samples * test_data$bmi_region[j] +
+    beta_children_smoker_samples * test_data$children_smoker[j] +
+    beta_children_region_samples * test_data$children_region[j] +
+    beta_smoker_region_samples * test_data$smoker_region[j] +
+    beta_age_squared_samples * test_data$age_squared[j] +
+    beta_bmi_squared_samples * test_data$bmi_squared[j] +
+    beta_smoker_squared_samples * test_data$smoker_squared[j] +
+    beta_region_squared_samples * test_data$region_squared[j]
+  
+  predictions[, j] <- rnorm(n_samples, mu, sqrt(1 / jags_alt_model$BUGSoutput$sims.list$tau))
+}
+
+predicted_means <- apply(predictions, 2, mean)
+test_pol$bayes_2 <- predicted_means
+rmse_value <- rmse(test_pol$charges, test_pol$bayes_2)
+paste("RMSE:", rmse_value)
+```
+
+As we can see, the alternative model performs better even when it comes to the predictive accuracy as the RMSE dropped from 0.45 to 0.35.
+
+### Model Checking diagnostics and discussion
+
+Since we will go with the model with polynomial features, we shall run some diagnostics to evaluate the reliability and validity of the estimates obtained from the JAGS model.
+
+#### Trace Plots
+
+Trace plots are used to visually assess the sampling behavior of each parameter in a Bayesian model. They show how the sampled values of a parameter evolve over the iterations of the MCMC algorithm, helping to check if the chain has converged and is mixing well. What we are looking for is random fluctuation around a stable mean value and having good mixing, which is indicated by frequent transitions across the parameter space, without long periods where the chain gets stuck in one region. We should also be looking for the convergence of all 3 chains, which is indicated by the overlapping of the chains after some iterations.
+
+```{r ,align='center',echo=FALSE}
+mcmc_samples <- as.mcmc(jags_alt_model)
+samples_list <- lapply(mcmc_samples, as.data.frame) 
+samples_df <- do.call(rbind, lapply(1:length(samples_list), function(i) {
+  df <- samples_list[[i]]
+  df$chain <- i  
+  df
+}))
+samples_long <- melt(samples_df, id.vars = "chain", variable.name = "parameter", value.name = "value")
+samples_long$iteration <- rep(1:nrow(samples_list[[1]]), times = length(samples_list))
+
+ggplot(samples_long, aes(x = iteration, y = value, color = factor(chain))) +
+  geom_line(alpha = 0.8) +
+  facet_wrap(~parameter, scales = "free") +
+  labs(title = "Trace Plots of Parameters by Chain", x = "Iteration", y = "Value", color = "Chain")
+
+ 
+
+```
+
+In our trace plots we see that the values fluctuate randomly around a central value, suggesting that the MCMC process has reached a stable posterior distribution. We also see that there is no upward or downward trend. Both of these aspects show convergence. We also see that the chains are mixing and overlapping.
+
+#### ACF plot
+
+An ACF plot is used to analyze how a variable's values are correlated with its own past values at various time lags and it helps assess how well the sampling algorithm is performing and whether the samples in the chain are independent of each other.
+
+```{r ,align='center',echo=FALSE}
+compute_acf <- function(param_chain, lag_max = 20) {
+  acf_data <- acf(param_chain, plot = FALSE, lag.max = lag_max)
+  data.frame(Lag = acf_data$lag, ACF = acf_data$acf)
+}
+
+param_names <- colnames(as.matrix(mcmc_samples))
+acf_results <- lapply(param_names, function(param) {
+  param_chain <- as.matrix(mcmc_samples)[, param]
+  acf_data <- compute_acf(param_chain)
+  acf_data$Parameter <- param
+  return(acf_data)
+})
+
+acf_data_combined <- bind_rows(acf_results)
+ggplot(acf_data_combined, aes(x = Lag, y = ACF)) +
+  geom_line() +
+  facet_wrap(~ Parameter, scales = "free_y") +
+  labs(title = "ACF Plots for MCMC Parameters",
+       x = "Lag",
+       y = "Autocorrelation")
+```
+
+As all plots shown above have a drop in autocorrelation to a value close to 0 very quickly, this shows that the chain is moving independently from one iteration to the next, indicating good mixing.
+
+#### Density plot
+
+A density plot shows the estimated probability density function of the posterior distributions of the parameters sampled from the model. What we need to check is the symmetry of the density and if the chains overlap.
+
+```{r ,align='center',echo=FALSE}
+
+samples_long <- melt(samples_df, id.vars = "chain", variable.name = "parameter", value.name = "value")
+ggplot(samples_long, aes(x = value, color = factor(chain))) +
+  geom_density() +
+  facet_wrap(~parameter, scales = "free") +
+  labs(title = "Density Plots of Parameters by Chain", x = "Value", y = "Density", color = "Chain")
+```
+
+As seen by the density plots above, the densities for the parameters are all symmetric. Symmetry implies that the parameter estimates are stable and not biased in one direction. We can also see that the chains are overlapping, this is a strong indicator that our MCMC sampling has reached a stationary distribution.
+
+All diagnostic graphs shows that our model is reliable, is performing well, and that the MCMC sampling has converged effectively. This is also backed up by our good predictions as shown by the low mean residual obtained.
+
+## Findings and Conclusion
+
+In conclusion, we find that the variables we have give us a strong indicator of what an individual's charge is going to be. With some of the most significant ones being unsurprisingly the ones that affect one's health (Age, smoking, BMI). We also find that both the Frequentist and Bayesian approaches provide us with good predictive models for this problem,with models that utilize polynomial features performing better than the ones without them as they help us capture the non-linear relationships between the dependent variables. This was evaluated by the RMSE of the prediction in the frequentist model's case and the DIC, $\hat{R}$, n.eff. and the RMSE in the Bayesian model's case.
