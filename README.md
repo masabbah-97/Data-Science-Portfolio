@@ -10,7 +10,7 @@ This portfolio contains all my data science projects from both my academic and p
 
 ### Machine Learning  
 
-#### **Census Data Income Prediction**  
+#### **[Census Data Income Prediction](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Census-Data-Income-Prediction)**  
 - **Objective:** Developed a machine learning model to predict whether an adult earns more than $50K per year based on U.S. census data.  
 - **Approach:**  
   - Explored demographic and economic features (age, education, occupation, etc.).  
