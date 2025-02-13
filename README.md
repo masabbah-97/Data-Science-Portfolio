@@ -41,3 +41,18 @@ This portfolio contains all my data science projects from both my academic and p
     - Identified significant variables like **age**, **BMI**, and **smoking** as key predictors of insurance charges.  
   - **Tools & Technologies:** `R, JAGS, caret, ggplot2, R2jags, dplyr`
   - [Dataset](https://www.kaggle.com/datasets/mirichoi0218/insurance)
+
+### Deep Learning  
+
+- **[Saliency Map and SmoothGrad on CNN](https://github.com/masabbah-97/Data-Science-Portfolio/blob/main/Deep%20Learning%20Projects/Saliency-Map-and-SmoothGrad-on-CNN/Saliency_map_implementation.ipynb)**  
+  - **Objective:** Implemented a saliency map and SmoothGrad on a Convolutional Neural Network (CNN) using the "Cats vs Dogs" dataset from Kaggle.  
+  - **Approach:**  
+    - Built a CNN to classify images of cats vs. dogs.  
+    - Implemented the **saliency map** and **SmoothGrad** techniques by hand to visualize the areas of the image that influence the model’s predictions the most.  
+    - The dataset was retrieved from Kaggle.  
+  - **Results:**  
+    - Successfully visualized model predictions, enhancing interpretability of the CNN’s decision-making process.  
+    - Demonstrated the effectiveness of saliency maps and SmoothGrad for understanding CNN behavior on image classification tasks.  
+  - **Tools & Technologies:** `TensorFlow, Keras, Python`  
+  - [Dataset](https://www.kaggle.com/competitions/dogs-vs-cats/)
+
