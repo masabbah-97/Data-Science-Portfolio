@@ -60,7 +60,7 @@ This portfolio contains all my data science projects from both my academic and p
 - **[Leveraging Large Language Models for Developing Subjective Well-being Indicators](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Thesis)**
   - **Objective:** Develop a subjective well-being indicator based on the mental health of communities by utilizing big data resources and LLMs.
   - **Approach:**
-    - By utilizing a mental health dataset, 3 models were trained on the classification task. The models are a basic deep learning model (Attention-based BiLSTM), a bidirectional LLM (BERT), and a more modern LLM that is much larger (Meta's Llama 3.2 3B).
+    - By utilizing a [mental health dataset](https://www.kaggle.com/datasets/suchintikasarkar/sentiment-analysis-for-mental-health), 3 models were trained on the classification task. The models are a basic deep learning model (Attention-based BiLSTM), a bidirectional LLM (BERT), and a more modern LLM that is much larger (Meta's Llama 3.2 3B).
     - Use three models (Llama, BERT, and an Attention-Based BiLSTM) and train them on the task of classifying the mental health status according to text data.
     - Use another dataset (source: Istat) for the first 5 months of 2020 to create well-being indicators related to mental health. The models are given these tweets as input and a time series was created for each class.
     - The results were analyzed using the previously mentioned graph, a confidence graph, and word clouds and trigram graphs to further analyze the trends.
