@@ -58,17 +58,16 @@ This portfolio contains all my data science projects from both my academic and p
 
 ### Thesis
 - **[Leveraging Large Language Models for Developing Subjective Well-being Indicators](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Thesis)**
-  -  **Objective:** Develop A subjective Well-being indicator based on the mental health of communities by utilizing big data resources and LLMs.
-  -  **Approach:**
-    - By utilizing a mental health dataset, 3 models were trained on the classification task. The models are a basic deep learning model (Attention based BiLSTM), a bidirectional LLM (BERT), and a more modern LLM that is much larger (Meta's Llama 3.2 3B).
-    - Use three models (Llama, BERT, and an Attention Based BiLSTM) and train them on the task of classifying the mental health status according to text data.
-    - Use another dataset (source: Istat) for the first 5 months of 2020 to create well-being indicators related to mental health. The models are given these tweets as input and a timeseries was created for each class.
-    - The results were analyzed using the previously mentioned graph, a confidence graph, and wordclouds and trigram graphs to further analyze the trends.
-  -**Results:**
+  - **Objective:** Develop a subjective well-being indicator based on the mental health of communities by utilizing big data resources and LLMs.
+  - **Approach:**
+    - By utilizing a mental health dataset, 3 models were trained on the classification task. The models are a basic deep learning model (Attention-based BiLSTM), a bidirectional LLM (BERT), and a more modern LLM that is much larger (Meta's Llama 3.2 3B).
+    - Use three models (Llama, BERT, and an Attention-Based BiLSTM) and train them on the task of classifying the mental health status according to text data.
+    - Use another dataset (source: Istat) for the first 5 months of 2020 to create well-being indicators related to mental health. The models are given these tweets as input and a time series was created for each class.
+    - The results were analyzed using the previously mentioned graph, a confidence graph, and word clouds and trigram graphs to further analyze the trends.
+  - **Results:**
     - The model that generalized the best when creating the indicators was the BERT model, while the Llama is second (with some cases of overfitting for specific classes), and the worst model is the BiLSTM as it shows obvious signs of underfitting.
-    - The LLMs managed to capture trends that were in line with real life events (the onset of the pandemic).
+    - The LLMs managed to capture trends that were in line with real-life events (the onset of the pandemic).
     - There were obvious spikes in negative classes when the lockdown measures were first introduced, and upon further analysis it can be deduced that the panic buying phenomenon as well as having to isolate was taking a toll on Italian communities.
-    - LLMs can be a very valuable tool into gaining real-time insights about the public, allowing for quicker interventions to improve the overall well-being and respond to worrying trends quicker than traditional methods.
-    - **Tools & Technologies:** `TensorFlow, Keras, HuggingFace, PEFT, NLTK, Python`  
-
+    - LLMs can be a very valuable tool for gaining real-time insights about the public, allowing for quicker interventions to improve overall well-being and respond to worrying trends faster than traditional methods.
+  - **Tools & Technologies:** `TensorFlow, Keras, HuggingFace, PEFT, NLTK, Python`
 
