@@ -56,3 +56,5 @@ This portfolio contains all my data science projects from both my academic and p
   - **Tools & Technologies:** `TensorFlow, Keras, Python`  
   - [Dataset](https://www.kaggle.com/competitions/dogs-vs-cats/)
 
+### [Thesis](https://github.com/masabbah-97/Data-Science-Portfolio/tree/main/Thesis)
+
