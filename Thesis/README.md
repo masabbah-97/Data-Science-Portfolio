@@ -7,9 +7,9 @@ This repository contains the code and analysis for developing subjective well-be
 
 ## 📂 Contents  
 - **📝 [Data Preprocessing](https://github.com/masabbah-97/Data-Science-Portfolio/blob/main/Thesis/Data%20Pre-processing.ipynb)** – This notebook contains all the pre-processing steps that is shared by the three models.
-### 🤖 Models
+- ### 🤖 Models
 - **[Attention Based BiLSTM Model Training & Evaluation](https://github.com/masabbah-97/Data-Science-Portfolio/blob/main/Thesis/AttnBiLSTM.ipynb)** – This notebook includes the pre-processing steps specific for the BiLSTM model, along with the model training steps and the evaluation of its performance.
 - **[BERT Model Training & Evaluation](https://github.com/masabbah-97/Data-Science-Portfolio/blob/main/Thesis/AttnBiLSTM.ipynb)** – This notebook includes the pre-processing steps specific for the BERT model, along with the model training steps and the evaluation of its performance.
-- Fine-tuning BERT, Llama, and AB-BiLSTM for mental health classification.  
+  
 - **📊 Analysis & Results** – Performance comparisons, word clouds, and trend visualizations.  
 - **🔍 Key Findings** – Insights into model generalization and biases in well-being prediction.  
